@@ -199,8 +199,6 @@ This project is available under the MIT License. See LICENSE file for details.
 Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
 
 ## 👤 Author
-
-**Your Name**
 - GitHub: JRBaiao (https://github.com/JRBaiao)
 - LinkedIn: João Rafael A. Baião ([https://linkedin.com/in/yourprofile](https://www.linkedin.com/in/jo%C3%A3o-rafael-a-bai%C3%A3o-466b16283/))
 
