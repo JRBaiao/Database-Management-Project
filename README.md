@@ -1,212 +1,177 @@
-# Brazilian E-commerce Database Management System
+# Brazilian E-Commerce Database
 
-A comprehensive database design and analysis project for a Brazilian e-commerce platform, implementing relational database principles and business intelligence queries using MySQL.
+A relational database built on real marketplace data from Olist, a Brazilian e-commerce platform, with a normalised schema, referential integrity, a targeted indexing strategy and business analysis queries. The project covers **112,650 order items**, **32,951 products** and **99,441 customers**.
 
-## 📋 Project Overview
+Developed as the final project for a Database Management course.
 
-This project demonstrates the design, implementation, and analysis of an e-commerce database system based on real-world Brazilian marketplace data. The database structure supports order management, product cataloging, customer tracking, and business analytics.
+---
 
-## 🗄️ Database Schema
+## Key findings
 
-### Entity Relationship Design
+| Question | Result |
+|---|---|
+| Which categories generate the most revenue? | Health & beauty (R$ 1.26M), watches & gifts (R$ 1.21M) and bed, bath & table (R$ 1.04M) lead, out of R$ 13.6M in total item sales |
+| Where are the customers? | São Paulo alone accounts for 42% of customers, followed by Rio de Janeiro (13%) and Minas Gerais (12%) |
+| Which categories carry the highest shipping costs? | Computers, home appliances and mattresses & upholstery, all bulky items, have the highest average freight per item |
+| Which categories have the largest catalogues? | Bed, bath & table (3,029 products), sports & leisure (2,867) and furniture & decor (2,657) |
 
-The database consists of four core tables with established relationships:
+Revenue is the sum of item prices, excluding freight.
 
-#### **olist_customers**
-Stores customer information and geographic data.
-- `customer_id` (PK): Unique customer identifier
-- `customer_unique_id`: Persistent customer identifier across orders
-- `customer_zip_code_prefix`: ZIP code prefix
-- `customer_city`: Customer city
-- `customer_state`: Two-letter state code
+---
 
-#### **product_category_name_translation**
-Provides English translations for Portuguese product categories.
-- `product_category_name` (PK): Original category name
-- `product_category_name_english`: English translation
+## Schema
 
-#### **olist_products**
-Contains detailed product specifications and attributes.
-- `product_id` (PK): Unique product identifier
-- `product_category_name` (FK): Product category
-- `product_name_lenght`: Length of product name
-- `product_description_lenght`: Length of product description
-- `product_photos_qty`: Number of product photos
-- `product_weight_g`: Product weight in grams
-- `product_length_cm`: Product length
-- `product_height_cm`: Product height
-- `product_width_cm`: Product width
+```mermaid
+erDiagram
+    product_category_name_translation ||--o{ olist_products : "categorises"
+    olist_products ||--o{ olist_order_items : "sold as"
 
-#### **olist_order_items**
-Tracks individual items within orders and their pricing.
-- `order_id` (PK, composite): Order identifier
-- `order_item_id` (PK, composite): Item sequence within order
-- `product_id` (FK): Product reference
-- `seller_id`: Seller identifier
-- `shipping_limit_date`: Shipping deadline
-- `price`: Item price
-- `freight_value`: Shipping cost
-
-### Relationships
-
-```
-product_category_name_translation (1) ──→ (N) olist_products
-olist_products (1) ──→ (N) olist_order_items
-```
-
-## 🚀 Key Features
-
-### 1. **Referential Integrity**
-- Foreign key constraints ensure data consistency
-- Cascading relationships between products, categories, and orders
-
-### 2. **Strategic Indexing**
-Optimized indexes for common query patterns:
-- Product lookups by ID
-- Category-based filtering
-- Price range queries
-- Geographic customer distribution
-- Composite index for weight and category analysis
-
-### 3. **Comprehensive Analytics**
-Pre-built analytical queries covering:
-- Revenue analysis by category
-- Demand forecasting (best-selling products)
-- Market reach (customer distribution)
-- Operational efficiency (freight cost analysis)
-- Pricing strategies (category-based pricing)
-
-## 📊 Analysis Capabilities
-
-### Business Performance Metrics
-- **Total revenue by product category**: Identifies top-performing segments
-- **Average order item price per category**: Reveals pricing patterns
-- **Freight cost impact analysis**: Operational cost insights
-
-### Demand Analysis
-- **Top 10 best-selling products**: Inventory planning
-- **Units sold tracking**: Demand forecasting
-- **Product catalog distribution**: Portfolio analysis
-
-### Market Intelligence
-- **Customer distribution by state**: Geographic market penetration
-- **Product size vs. price correlation**: Pricing optimization opportunities
-
-## 💻 Getting Started
-
-### Prerequisites
-- MySQL Server 8.0 or higher
-- MySQL Workbench (optional, for GUI management)
-
-### Installation
-
-1. **Clone the repository**
-```bash
-git clone https://github.com/yourusername/brazil-ecommerce-db.git
-cd brazil-ecommerce-db
+    product_category_name_translation {
+        VARCHAR product_category_name PK
+        VARCHAR product_category_name_english
+    }
+    olist_products {
+        VARCHAR product_id PK
+        VARCHAR product_category_name FK
+        FLOAT product_weight_g
+        FLOAT product_length_cm
+        FLOAT product_height_cm
+        FLOAT product_width_cm
+    }
+    olist_order_items {
+        VARCHAR order_id PK
+        INT order_item_id PK
+        VARCHAR product_id FK
+        VARCHAR seller_id
+        DATETIME shipping_limit_date
+        DECIMAL price
+        DECIMAL freight_value
+    }
+    olist_customers {
+        VARCHAR customer_id PK
+        VARCHAR customer_unique_id
+        INT customer_zip_code_prefix
+        VARCHAR customer_city
+        CHAR customer_state
+    }
 ```
 
-2. **Create the database and tables**
-```bash
-mysql -u your_username -p < "Table Creation - DBM (Final Paper).sql"
-```
+| Table | Rows | Purpose |
+|---|---|---|
+| `product_category_name_translation` | 73 | Maps Portuguese category names to English |
+| `olist_products` | 32,951 | Product catalogue with category and physical dimensions |
+| `olist_order_items` | 112,650 | One row per item sold, with price and freight cost |
+| `olist_customers` | 99,441 | Customer location (city, state, ZIP prefix) |
 
-3. **Load your data** (if you have CSV files)
+### Design decisions
+
+- **Composite primary key** on `olist_order_items (order_id, order_item_id)`, since an order can contain several items
+- **Foreign keys** from order items to products and from products to category translations, so every sale points to a real product and every product to a known category
+- **`DECIMAL(10,2)` for money** (`price`, `freight_value`) to avoid floating-point rounding errors
+- **Nullable product category**, because 610 products in the source data have no category
+
+---
+
+## Indexing strategy
+
+Indexes were chosen to match the joins and groupings used in the analysis queries:
+
+| Index | Columns | Supports |
+|---|---|---|
+| `idx_order_items_product_id` | `olist_order_items (product_id)` | Joins from order items to products |
+| `idx_order_items_product_price` | `olist_order_items (product_id, price)` | Revenue aggregation per product |
+| `idx_products_category` | `olist_products (product_category_name)` | Joins and grouping by category |
+| `idx_products_weight_category` | `olist_products (product_category_name, product_weight_g)` | Weight analysis per category |
+| `idx_customers_state` | `olist_customers (customer_state)` | Customer distribution by state |
+
+---
+
+## Analysis
+
+`Analysis - DBM (Final Paper).sql` contains two sets of queries.
+
+**Quick overview:** units sold per product, products per category, revenue per product and per category, customers per state and average product weight per category.
+
+**Business analysis:**
+
+| # | Query | Business question |
+|---|---|---|
+| 1 | Total revenue by category | Which segments drive sales? |
+| 2 | Average item price by category | How does pricing differ across categories? |
+| 3 | Products per category | Where is the catalogue concentrated? |
+| 4 | Top 10 best-selling products | Which products need the most inventory attention? |
+| 5 | Customers by state | Where is the market concentrated? |
+| 6 | Product weight vs. price | Does product size relate to price? |
+| 7 | Average freight cost by category | Which categories are most expensive to ship? |
+
+Example: revenue by category
+
 ```sql
-LOAD DATA INFILE 'path/to/customers.csv' 
-INTO TABLE olist_customers 
-FIELDS TERMINATED BY ',' 
-ENCLOSED BY '"' 
-LINES TERMINATED BY '\n' 
-IGNORE 1 ROWS;
-```
-
-4. **Run analysis queries**
-```bash
-mysql -u your_username -p Brazil_Ecommerce_DB < "Analysis - DBM (Final Paper).sql"
-```
-
-## 📈 Sample Queries
-
-### Find Top Revenue-Generating Categories
-```sql
-SELECT t.product_category_name_english AS category, 
+SELECT t.product_category_name_english AS category,
        SUM(oi.price) AS total_revenue
 FROM olist_order_items oi
 JOIN olist_products p ON oi.product_id = p.product_id
-JOIN product_category_name_translation t ON p.product_category_name = t.product_category_name
+JOIN product_category_name_translation t
+  ON p.product_category_name = t.product_category_name
 GROUP BY t.product_category_name_english
 ORDER BY total_revenue DESC;
 ```
 
-### Analyze Customer Geographic Distribution
-```sql
-SELECT customer_state, 
-       COUNT(customer_id) AS total_customers
-FROM olist_customers
-GROUP BY customer_state
-ORDER BY total_customers DESC;
+---
+
+## Getting started
+
+### Prerequisites
+
+- MySQL 8.0+ (or MariaDB 10.x)
+- Local file loading enabled on the server: `SET GLOBAL local_infile = 1;`
+
+### Setup
+
+Run every command from the repository root, because the load script uses relative file paths.
+
+```bash
+git clone https://github.com/JRBaiao/Database-Management-Project.git
+cd Database-Management-Project
+
+# 1. Create the database, tables and indexes
+mysql -u <user> -p < "Table Creation - DBM (Final Paper).sql"
+
+# 2. Load the CSV data
+mysql --local-infile=1 -u <user> -p < load_data.sql
+
+# 3. Run the analysis
+mysql -u <user> -p Brazil_Ecommerce_DB < "Analysis - DBM (Final Paper).sql"
 ```
 
-## 🛠️ Database Optimization
-
-### Indexing Strategy
-- **Single-column indexes**: Fast lookups on frequently queried fields
-- **Composite indexes**: Optimized for multi-field queries (category + weight)
-- **Unique indexes**: Enforce data integrity on natural keys
-
-### Performance Considerations
-- Indexed foreign keys for efficient joins
-- Strategic use of DECIMAL for monetary values
-- Appropriate data types to minimize storage
-
-## 📁 Project Structure
-
-```
-brazil-ecommerce-db/
-├── Table Creation - DBM (Final Paper).sql    # Schema definition
-├── Analysis - DBM (Final Paper).sql          # Analytical queries
-├── README.md                                 # Project documentation
-└── data/                                     # (Optional) Sample datasets
-```
-
-## 🎯 Use Cases
-
-This database design supports:
-- **E-commerce Platform Management**: Order processing and inventory tracking
-- **Business Intelligence**: Revenue analysis and performance metrics
-- **Market Research**: Customer behavior and geographic analysis
-- **Supply Chain Optimization**: Freight cost analysis and logistics planning
-- **Product Strategy**: Category performance and pricing optimization
-
-## 🔮 Future Enhancements
-
-Potential extensions to consider:
-- [ ] Add `olist_orders` table for order-level attributes (status, timestamps)
-- [ ] Implement `olist_order_reviews` for customer satisfaction analysis
-- [ ] Include `olist_geolocation` for detailed geographic analytics
-- [ ] Add temporal indexes for time-series analysis
-- [ ] Create views for frequently accessed analytics
-- [ ] Implement stored procedures for complex business logic
-- [ ] Add triggers for automated data validation
-
-## 📝 License
-
-This project is available under the MIT License. See LICENSE file for details.
-
-## 🤝 Contributing
-
-Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
-
-## 👤 Author
-- GitHub: JRBaiao (https://github.com/JRBaiao)
-- LinkedIn: João Rafael A. Baião ([https://linkedin.com/in/yourprofile](https://www.linkedin.com/in/jo%C3%A3o-rafael-a-bai%C3%A3o-466b16283/))
-
-## 🙏 Acknowledgments
-
-- Dataset inspired by the Olist Brazilian E-commerce Public Dataset
-- Database design principles from modern e-commerce architecture patterns
+`load_data.sql` handles three quirks of the source files: two use semicolons and Windows line endings while the others use commas, empty values must become `NULL`, and two product categories are missing from the translation file and are added before the products are loaded. The script ends with a row count check.
 
 ---
 
-⭐ If you found this project helpful, please consider giving it a star!
+## Project structure
+
+```
+├── Table Creation - DBM (Final Paper).sql   # Schema, constraints and indexes
+├── load_data.sql                            # Loads the CSV files
+├── Analysis - DBM (Final Paper).sql         # Overview and business queries
+├── olist_products_dataset.csv
+└── Brazilian E-Commerce Public Dataset/
+    ├── olist_customers_dataset.csv
+    ├── olist_order_items_dataset.csv
+    └── product_category_name_translation.csv
+```
+
+---
+
+## Limitations and next steps
+
+- **Customers are not yet linked to sales.** The link between customers and order items runs through the Olist `orders` table, which is not included. Adding it would enable customer-level questions such as revenue by state or repeat purchase rates.
+- **No time dimension.** Without order dates, trends and seasonality can't be analysed. The `orders` table would also solve this.
+- **Reviews and geolocation** tables were drafted in the schema script but dropped from the final model; they are natural extensions for satisfaction and delivery analysis.
+- **Views** for the recurring analysis queries would make them reusable from BI tools.
+
+---
+
+## Data source and license
+
+The data comes from the [Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce), published on Kaggle under the **CC BY-NC-SA 4.0** license.
